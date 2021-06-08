@@ -1,7 +1,8 @@
+import numpy as np
 import scipy
 import numpy
 import matplotlib.pyplot as plt
-from scipy import linalg, special
+from scipy import linalg, special, stats
 from numpy import genfromtxt
 
 def mcol(X):
@@ -117,7 +118,7 @@ class GaussianClassifier:
 
         error = 1 - (numpy.count_nonzero(True_prediction) / True_prediction.size)
 
-        print(error)
+        print("Gaussian Classifier error:", error)
 
 
 class TiedCovClassifier:
@@ -131,7 +132,8 @@ class TiedCovClassifier:
         for i in numpy.unique(LTR):
             Nc = DTR[:, LTR == i].shape[1]
             self.C_ += Nc*C[i]
-        self.C_ = 1/N*self.C_
+        self.C_ /= N
+
 
     def test(self, DTE, LTE):
         S = numpy.zeros((numpy.unique(LTE).size, DTE.shape[1]))
@@ -153,7 +155,51 @@ class TiedCovClassifier:
 
         error = 1 - (numpy.count_nonzero(True_prediction) / True_prediction.size)
 
-        print(error)
+        print("TiedCovClassifier error:", error)
+
+
+class BayesClassifier:
+    def __init__(self):
+        self.C = {}
+        self.mu = {}
+        
+    def train(self, DTR, LTR):
+
+        self.mu, self.C = MU_Cov_calculator(DTR, LTR)
+        for i in numpy.unique(LTR):
+            self.C[i] *= numpy.eye(self.C[i].shape[0])
+
+    def test(self, DTE, LTE):
+
+        S = numpy.zeros((numpy.unique(LTE).size, DTE.shape[1]))
+        predicted = []
+
+        for i in numpy.unique(LTE):
+            S[i, :] = numpy.exp(GAU_logpdf_ND(DTE, self.mu[i], self.C[i]) + numpy.log(1 / 2))
+
+        Sp = scipy.special.logsumexp(S, axis=0)
+
+        for x, p in zip(S.T, Sp):
+            tmp = x - p
+            predicted.append(numpy.argmax(tmp))
+
+        predicted = numpy.array(predicted)
+
+        True_prediction = numpy.array([predicted == LTE])
+
+        error = 1 - (numpy.count_nonzero(True_prediction) / True_prediction.size)
+
+        print("Naive Bayes Classifier error:", error)
+
+
+def z_normalization(DTR):
+    local = numpy.array(DTR)
+    mean = local.mean(axis=1)
+    std = local.std(axis=1)
+    local -= mcol(mean)
+    local /= mcol(std)
+    return local
+
 
 if __name__ == '__main__':
     fname = 'Train.txt'
@@ -169,8 +215,23 @@ if __name__ == '__main__':
     Gauss.train(DTR, LTR)
     Gauss.test(DTE, LTE)
 
+    Gauss_norm = GaussianClassifier()
+    Gauss_norm.train(z_normalization(DTR), LTR)
+    Gauss_norm.test(DTE, LTE)
+
     TiedGauss.train(DTR, LTR)
     TiedGauss.test(DTE, LTE)
 
+    tied_norm = TiedCovClassifier()
+    tied_norm.train(z_normalization(DTR), LTR)
+    tied_norm.test(DTE, LTE)
+
+    Bayes = BayesClassifier()
+    Bayes.train(DTR, LTR)
+    Bayes.test(DTE, LTE)
+
+    Bayes_norm = BayesClassifier()
+    Bayes_norm.train(z_normalization(DTR), LTR)
+    Bayes_norm.test(DTE, LTE)
 
     print('***END***')
