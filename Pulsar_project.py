@@ -200,38 +200,90 @@ def z_normalization(DTR):
     local /= mcol(std)
     return local
 
+def PCAplot(DTR):
+    mu = mcol(numpy.mean(DTR, axis=1))
+
+    TMP = DTR-mu
+    N = DTR.shape[1]
+    C = numpy.dot(TMP, TMP.T)/N
+
+    U, s, Vh = numpy.linalg.svd(C)
+
+    normalizedEigenvalues = s / numpy.sum(s)
+    #print(per_var)
+    labels = ['PC' + str(x) for x in range(1, len(s) + 1)]
+    plt.bar(x=range(1, len(s) + 1), height=normalizedEigenvalues, tick_label=labels)
+    plt.ylabel('percentage of Variance per PC')
+    plt.xlabel('Principal Component')
+    plt.title('PC variance plot')
+    plt.show()
+
+    return U
+
+
+def PCA(DTR, LTR, U):
+
+    m = 3
+    P = U[:, 0:m]
+    y = numpy.dot(P.T, DTR)
+    data = {}
+
+    for i in numpy.unique(LTR):
+        data[i] = DTR[:, LTR==i]
+
+    plt.figure()
+    plt.axes(projection='3d')
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+
+
+    for i in numpy.unique(LTR):
+        plt.scatter(data[i][0, :], data[i][1, :], data[i][2, :], label=i)
+
+    plt.legend()
+    plt.show()
+
+    return None
 
 if __name__ == '__main__':
     fname = 'Train.txt'
     Gauss = GaussianClassifier()
     TiedGauss = TiedCovClassifier()
+    Bayes = BayesClassifier()
+
+    Gauss_norm = GaussianClassifier()
+    tied_norm = TiedCovClassifier()
+    Bayes_norm = BayesClassifier()
 
     D, L = loadFile(fname)
 
-    LDA(D, L)
-
     (DTR, LTR), (DTE, LTE) = split_db_2to1(D, L)
+
+    LDA(DTR, LTR)
+    eigenvectors = PCAplot(DTR)
+
+
+    PCA(DTR, LTR, eigenvectors)
 
     Gauss.train(DTR, LTR)
     Gauss.test(DTE, LTE)
 
-    Gauss_norm = GaussianClassifier()
     Gauss_norm.train(z_normalization(DTR), LTR)
     Gauss_norm.test(DTE, LTE)
+    Gauss_norm.test(z_normalization(DTE), LTE)
 
     TiedGauss.train(DTR, LTR)
     TiedGauss.test(DTE, LTE)
 
-    tied_norm = TiedCovClassifier()
     tied_norm.train(z_normalization(DTR), LTR)
     tied_norm.test(DTE, LTE)
+    tied_norm.test(z_normalization(DTE), LTE)
 
-    Bayes = BayesClassifier()
     Bayes.train(DTR, LTR)
     Bayes.test(DTE, LTE)
 
-    Bayes_norm = BayesClassifier()
     Bayes_norm.train(z_normalization(DTR), LTR)
     Bayes_norm.test(DTE, LTE)
+    Bayes_norm.test(z_normalization(DTE), LTE)
 
     print('***END***')
