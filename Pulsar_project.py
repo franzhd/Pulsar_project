@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy import linalg, special, stats
 from numpy import genfromtxt
 
+
 def mcol(X):
     return X.reshape((len(X), 1))
 
@@ -175,7 +176,7 @@ class BayesClassifier:
         predicted = []
 
         for i in numpy.unique(LTE):
-            S[i, :] = numpy.exp(GAU_logpdf_ND(DTE, self.mu[i], self.C[i]) + numpy.log(1 / 2))
+            S[i, :] = numpy.exp(GAU_logpdf_ND(DTE, self.mu[i], self.C[i]) + numpy.log(1/2))
 
         Sp = scipy.special.logsumexp(S, axis=0)
 
@@ -185,11 +186,29 @@ class BayesClassifier:
 
         predicted = numpy.array(predicted)
 
+        llr = numpy.log(S[1, :]/S[0, :])
+
+        app = (0.5, 1, 1)
+
+        CM = compute_optimal_B_decision(app[0], app[1], app[2], llr, LTE)
+
+        bayesRiskUnNorm = compute_Bayes_risk(CM, app[0], app[1], app[2])
+
+        normBayesRisk = compute_norm_Bayes(bayesRiskUnNorm, app[0], app[1], app[2])
+
         True_prediction = numpy.array([predicted == LTE])
 
         error = 1 - (numpy.count_nonzero(True_prediction) / True_prediction.size)
 
         print("Naive Bayes Classifier error:", error)
+
+
+def compute_FNR(CM):
+    return CM[0, 1]/(CM[0, 1]+CM[1, 1])
+
+
+def compute_FPR(CM):
+    return CM[1, 0]/(CM[1, 0]+CM[0, 0])
 
 
 def z_normalization(DTR):
@@ -243,13 +262,73 @@ def PCA(DTR, LTR, U):
     plt.legend()
     plt.show()
 
-    return None
+
+def gaussianize(DTR):
+    M = numpy.zeros((DTR.shape[0], DTR.shape[1]))
+
+    for i in range(DTR.shape[0]):
+        for j in range(DTR.shape[1]):
+            tmp = DTR[i, :] < DTR[i, j]
+            M[i, j] = (numpy.sum(tmp)+1)/(DTR.shape[1]+2)
+
+    res = scipy.stats.norm.ppf(M)
+
+    # for i in range(DTR.shape[0]):
+    #     plt.figure()
+    #     plt.hist(res[i, :], bins=50, ec='black')
+    #     plt.show()
+
+    return res
+
+
+def compute_confusion_matrix(predictedLabels, testLabels, taskDim):
+    CM = numpy.zeros((taskDim, taskDim))
+
+    for i in range(len(predictedLabels)):
+        CM[predictedLabels[i]][int(testLabels[i])] += 1
+
+    return CM
+
+def compute_optimal_B_decision(pt, Cfn, Cfp, llr, testlabels, t=None):
+    if(t == None):
+        t = -numpy.log((pt * Cfn) / ((1 - pt) * Cfp)) #soglia
+
+    predictedL = numpy.zeros(len(llr), dtype=int)
+    for i in range(len(llr)):
+        if (llr[i] > t):
+            predictedL[i] = 1
+        else:
+            predictedL[i] = 0
+
+    CM = compute_confusion_matrix(predictedL, testlabels, 2)
+
+    # print(CM)
+    # print('\n\n')
+
+    return CM
+
+
+def compute_Bayes_risk(CM, p1, Cfn, Cfp):
+
+    FNR = compute_FNR(CM)
+    FPR = compute_FPR(CM)
+
+    return ((p1*Cfn*FNR)+((1-p1)*Cfp*FPR))
+
+
+def compute_norm_Bayes(unNormBayesRisk, p1, Cfn, Cfp):
+    BDummy = min(p1*Cfn, (1-p1)*Cfp)
+
+    return unNormBayesRisk/BDummy
 
 if __name__ == '__main__':
     fname = 'Train.txt'
     Gauss = GaussianClassifier()
+    Gauss2 = GaussianClassifier()
     TiedGauss = TiedCovClassifier()
+    TiedGauss2 = TiedCovClassifier()
     Bayes = BayesClassifier()
+    Bayes2 = BayesClassifier()
 
     Gauss_norm = GaussianClassifier()
     tied_norm = TiedCovClassifier()
@@ -259,11 +338,13 @@ if __name__ == '__main__':
 
     (DTR, LTR), (DTE, LTE) = split_db_2to1(D, L)
 
-    LDA(DTR, LTR)
-    eigenvectors = PCAplot(DTR)
+    #LDA(DTR, LTR)
+    #eigenvectors = PCAplot(DTR)
 
+    #PCA(DTR, LTR, eigenvectors)
+    DTR_gaussianized = gaussianize(DTR)
+    DTE_gaussianized = gaussianize(DTE)
 
-    PCA(DTR, LTR, eigenvectors)
 
     Gauss.train(DTR, LTR)
     Gauss.test(DTE, LTE)
@@ -272,6 +353,9 @@ if __name__ == '__main__':
     Gauss_norm.test(DTE, LTE)
     Gauss_norm.test(z_normalization(DTE), LTE)
 
+    Gauss2.train(DTR_gaussianized, LTR)
+    Gauss2.test(DTE_gaussianized, LTE)
+
     TiedGauss.train(DTR, LTR)
     TiedGauss.test(DTE, LTE)
 
@@ -279,11 +363,17 @@ if __name__ == '__main__':
     tied_norm.test(DTE, LTE)
     tied_norm.test(z_normalization(DTE), LTE)
 
+    TiedGauss2.train(DTR_gaussianized, LTR)
+    TiedGauss2.test(DTE_gaussianized, LTE)
+
     Bayes.train(DTR, LTR)
     Bayes.test(DTE, LTE)
 
     Bayes_norm.train(z_normalization(DTR), LTR)
     Bayes_norm.test(DTE, LTE)
     Bayes_norm.test(z_normalization(DTE), LTE)
+
+    Bayes2.train(DTR_gaussianized, LTR)
+    Bayes2.test(DTE_gaussianized, LTE)
 
     print('***END***')
