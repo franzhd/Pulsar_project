@@ -104,7 +104,7 @@ class GaussianClassifier:
         predicted = []
 
         for i in numpy.unique(LTE):
-            S[i, :] = numpy.exp(GAU_logpdf_ND(DTE, self.mu[i], self.C[i]) + numpy.log(1 / 2))
+            S[i, :] = GAU_logpdf_ND(DTE, self.mu[i], self.C[i]) + numpy.log(1 / 2)
 
         Sp = scipy.special.logsumexp(S, axis=0)
 
@@ -141,7 +141,7 @@ class TiedCovClassifier:
         predicted = []
 
         for i in numpy.unique(LTE):
-            S[i, :] = numpy.exp(GAU_logpdf_ND(DTE, self.mu[i], self.C_) + numpy.log(1 / 2))
+            S[i, :] = GAU_logpdf_ND(DTE, self.mu[i], self.C_) + numpy.log(1 / 2)
 
         Sp = scipy.special.logsumexp(S, axis=0)
 
@@ -176,7 +176,7 @@ class BayesClassifier:
         predicted = []
 
         for i in numpy.unique(LTE):
-            S[i, :] = numpy.exp(GAU_logpdf_ND(DTE, self.mu[i], self.C[i]) + numpy.log(1/2))
+            S[i, :] = GAU_logpdf_ND(DTE, self.mu[i], self.C[i]) + numpy.log(1/2)
 
         Sp = scipy.special.logsumexp(S, axis=0)
 
@@ -186,7 +186,7 @@ class BayesClassifier:
 
         predicted = numpy.array(predicted)
 
-        llr = numpy.log(S[1, :]/S[0, :])
+        llr = S[1, :]-S[0, :]
 
         app = (0.5, 1, 1)
 
@@ -308,7 +308,7 @@ def compute_optimal_B_decision(pt, Cfn, Cfp, llr, testlabels, t=None):
     return CM
 
 
-def compute_Bayes_risk(CM, p1, Cfn, Cfp):
+def compute_Bayes_risk(CM, p1, Cfn, Cfp): ##empirical Bayes Risk A recognizer that has lower cost will provide more accurate answers
 
     FNR = compute_FNR(CM)
     FPR = compute_FPR(CM)
