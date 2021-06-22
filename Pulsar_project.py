@@ -173,10 +173,12 @@ class BayesClassifier:
     def test(self, DTE, LTE):
 
         S = numpy.zeros((numpy.unique(LTE).size, DTE.shape[1]))
+        ll=numpy.zeros((numpy.unique(LTE).size, DTE.shape[1]))
         predicted = []
 
         for i in numpy.unique(LTE):
-            S[i, :] = GAU_logpdf_ND(DTE, self.mu[i], self.C[i]) + numpy.log(1/2)
+            ll[i, :]=GAU_logpdf_ND(DTE, self.mu[i], self.C[i])
+            S[i, :] =ll[i, :]  + numpy.log(1/2)
 
         Sp = scipy.special.logsumexp(S, axis=0)
 
@@ -185,19 +187,30 @@ class BayesClassifier:
             predicted.append(numpy.argmax(tmp))
 
         predicted = numpy.array(predicted)
-
-        llr = S[1, :]-S[0, :]
-
         app = (0.5, 1, 1)
+        app_bayes_risk=compute_Bayes_risk(compute_confusion_matrix(predicted, LTE, 2), app)
 
-        CM = compute_optimal_B_decision(app[0], app[1], app[2], llr, LTE)
+        DCF = compute_norm_Bayes(app_bayes_risk, app)
 
-        bayesRiskUnNorm = compute_Bayes_risk(CM, app[0], app[1], app[2])
+        llr = numpy.array(ll[1, :]-ll[0, :])
+        #opt_bayes_risk = compute_Bayes_risk(compute_optimal_B_decision(app, llr_, LTE), app)
 
-        normBayesRisk = compute_norm_Bayes(bayesRiskUnNorm, app[0], app[1], app[2])
+       # minDCF = compute_norm_Bayes(opt_bayes_risk, app)
 
+        DCF_list= np.array(DTE.shape[1])
+        trashold= numpy.sort(llr)
+        
+        for i in range(DTE.shape[1]):
+            tmpp=compute_Bayes_risk(compute_optimal_B_decision(app, llr, LTE, trashold[i]), app)
+            DCF_list[i]=compute_norm_Bayes(tmp, app)
+        
+        minDCF=DCF_list.min()
+        print("________________________________")
+        print("(p, Cfn,Cfp)     DCF     minDCG ")
+        print("________________________________")
+        print(app,"  ",DCF,"   ",minDCF)
+        print("________________________________")
         True_prediction = numpy.array([predicted == LTE])
-
         error = 1 - (numpy.count_nonzero(True_prediction) / True_prediction.size)
 
         print("Naive Bayes Classifier error:", error)
@@ -289,7 +302,9 @@ def compute_confusion_matrix(predictedLabels, testLabels, taskDim):
 
     return CM
 
-def compute_optimal_B_decision(pt, Cfn, Cfp, llr, testlabels, t=None):
+def compute_optimal_B_decision(app, llr, testlabels, t=None):
+    
+    pt, Cfn, Cfp= app
     if(t == None):
         t = -numpy.log((pt * Cfn) / ((1 - pt) * Cfp)) #soglia
 
@@ -308,15 +323,16 @@ def compute_optimal_B_decision(pt, Cfn, Cfp, llr, testlabels, t=None):
     return CM
 
 
-def compute_Bayes_risk(CM, p1, Cfn, Cfp): ##empirical Bayes Risk A recognizer that has lower cost will provide more accurate answers
-
+def compute_Bayes_risk(CM, app): ##empirical Bayes Risk A recognizer that has lower cost will provide more accurate answers
+    p1, Cfn, Cfp = app
     FNR = compute_FNR(CM)
     FPR = compute_FPR(CM)
 
     return ((p1*Cfn*FNR)+((1-p1)*Cfp*FPR))
 
 
-def compute_norm_Bayes(unNormBayesRisk, p1, Cfn, Cfp):
+def compute_norm_Bayes(unNormBayesRisk, app):
+    p1, Cfn, Cfp = app
     BDummy = min(p1*Cfn, (1-p1)*Cfp)
 
     return unNormBayesRisk/BDummy
