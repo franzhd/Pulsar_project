@@ -191,29 +191,20 @@ class BayesClassifier:
         app_bayes_risk=compute_Bayes_risk(compute_confusion_matrix(predicted, LTE, 2), app)
 
         DCF = compute_norm_Bayes(app_bayes_risk, app)
-
         llr = numpy.array(ll[1, :]-ll[0, :])
+        minDCF= compute_min_DCF(llr, app, LTE)
+
         #opt_bayes_risk = compute_Bayes_risk(compute_optimal_B_decision(app, llr_, LTE), app)
 
        # minDCF = compute_norm_Bayes(opt_bayes_risk, app)
 
-        DCF_list= np.array(DTE.shape[1])
-        trashold= numpy.sort(llr)
-        
-        for i in range(DTE.shape[1]):
-            tmpp=compute_Bayes_risk(compute_optimal_B_decision(app, llr, LTE, trashold[i]), app)
-            DCF_list[i]=compute_norm_Bayes(tmp, app)
-        
-        minDCF=DCF_list.min()
-        print("________________________________")
-        print("(p, Cfn,Cfp)     DCF     minDCG ")
-        print("________________________________")
-        print(app,"  ",DCF,"   ",minDCF)
-        print("________________________________")
         True_prediction = numpy.array([predicted == LTE])
         error = 1 - (numpy.count_nonzero(True_prediction) / True_prediction.size)
-
+        print("\-/ \-/ \-/ \-/ \-/ ")
         print("Naive Bayes Classifier error:", error)
+        print(app,"DCF:", DCF, "minDCF:", minDCF)
+        print("/-\ /-\ /-\ /-\ /-\ ")
+        
 
 
 def compute_FNR(CM):
@@ -336,6 +327,19 @@ def compute_norm_Bayes(unNormBayesRisk, app):
     BDummy = min(p1*Cfn, (1-p1)*Cfp)
 
     return unNormBayesRisk/BDummy
+
+def compute_min_DCF(llr, app, LTE):
+   
+    DCF_list= []
+    trashold= numpy.sort(llr)
+        
+    for i in range(DTE.shape[1]):
+        tmp=compute_Bayes_risk(compute_optimal_B_decision(app, llr, LTE, trashold[i]), app)
+        DCF_list.append(compute_norm_Bayes(tmp, app))
+        
+    return min(DCF_list)
+    
+    
 
 if __name__ == '__main__':
     fname = 'Train.txt'
