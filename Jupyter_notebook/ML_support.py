@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import scipy
 import numpy
 import matplotlib.pyplot as plt
@@ -194,3 +195,44 @@ def compute_min_DCF(llr, app, LTE):
         DCF_list.append(compute_norm_Bayes(tmp, app))
         
     return min(DCF_list)
+
+def plot_ROC(appParam, llr, testLabels):
+    pt, Cfn, Cfp = appParam
+    FPR = []
+    TPR = []
+    
+    thresholds = list(llr)
+    thresholds.append(math.inf)
+    thresholds.append(-math.inf)
+    thresholds.sort()
+    
+    for t in thresholds:
+        CM = compute_optimal_B_decision(appParam, llr, testLabels, t)
+        FPR.append(compute_FPR(CM))
+        TPR.append(1-compute_FNR(CM))
+
+    plt.plot(FPR, TPR)
+    plt.xlabel('FPR')
+    plt.ylabel('TPR')
+    plt.show()
+    
+    
+def logreg_obj_wrap(DTR, LTR, l):
+
+    def logreg_obj(v):
+        n = DTR.shape[1]
+        w, b = v[0:-1], v[-1]
+        w = w.reshape((len(w), 1))
+        J = 0
+        x = DTR
+        for idx in range(n):
+            if LTR[idx] == 0:
+                c = 0
+            else:
+                c = 1
+
+            J += (c * numpy.log1p(numpy.exp(numpy.dot(-w.T, x[:, idx]) - b)) + (1 - c) * numpy.log1p(numpy.exp(numpy.dot(w.T, x[:, idx]) + b)))
+
+        return l/2 * ((numpy.linalg.norm(w))**2) + 1/n * J
+
+    return logreg_obj
