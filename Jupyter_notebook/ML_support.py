@@ -100,7 +100,7 @@ def PCAplot(DTR):
 
 def PCA(DTR, LTR, U):
 
-    m = 3
+    m = 2
     P = U[:, 0:m]
     y = numpy.dot(P.T, DTR)
     data = {}
@@ -109,13 +109,12 @@ def PCA(DTR, LTR, U):
         data[i] = DTR[:, LTR==i]
 
     plt.figure()
-    plt.axes(projection='3d')
     plt.xlabel('PC1')
     plt.ylabel('PC2')
 
 
     for i in numpy.unique(LTR):
-        plt.scatter(data[i][0, :], data[i][1, :], data[i][2, :], label=i)
+        plt.scatter(data[i][0, :], data[i][1, :], label=i)
 
     plt.legend()
     plt.show()
