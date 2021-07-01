@@ -98,15 +98,16 @@ def PCAplot(DTR):
     return U
 
 
-def PCA(DTR, LTR, U):
-
-    m = 2
+def PCA(DTR, LTR, U, m=None):
+    
+    if(m==None):
+        m = 2 
     P = U[:, 0:m]
     y = numpy.dot(P.T, DTR)
     data = {}
 
     for i in numpy.unique(LTR):
-        data[i] = DTR[:, LTR==i]
+        data[i] = y[:, LTR==i]
 
     plt.figure()
     plt.xlabel('PC1')
@@ -118,7 +119,8 @@ def PCA(DTR, LTR, U):
 
     plt.legend()
     plt.show()
-
+    
+    return y
 
 def gaussianize(DTR):
     M = numpy.zeros((DTR.shape[0], DTR.shape[1]))
