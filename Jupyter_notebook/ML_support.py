@@ -144,7 +144,7 @@ def compute_confusion_matrix(predictedLabels, testLabels):
     taskDim=len(numpy.unique(testLabels))
 
     CM = numpy.zeros((taskDim, taskDim))
-
+        
     for i in range(len(predictedLabels)):
         CM[predictedLabels[i]][int(testLabels[i])] += 1
 
@@ -162,7 +162,7 @@ def compute_optimal_B_decision(app, llr, testlabels, t=None):
             predictedL[i] = 1
         else:
             predictedL[i] = 0
-
+    
     CM = compute_confusion_matrix(predictedL, testlabels)
 
     # print(CM)
@@ -237,3 +237,105 @@ def logreg_obj_wrap(DTR, LTR, l):
         return l/2 * ((numpy.linalg.norm(w))**2) + 1/n * J
 
     return logreg_obj
+
+## SVM
+
+def compute_H_hat(D_hat, LTR):
+
+    G = numpy.dot(D_hat.T, D_hat)
+    z = numpy.equal.outer(LTR, LTR)
+    z = 2*z-1
+    G = z*G
+
+    return G
+
+
+def compute_w(D_hat, LTR, alpha):
+
+    z = LTR*2-1
+    D = z*D_hat
+    w = numpy.dot(alpha, D.T)
+
+    return w
+
+def J_primal(w, C, DTR, LTR):
+
+    s = 0
+    z = LTR*2-1
+    for i in range(DTR.shape[1]):
+        s += max(0, 1-z[i]*numpy.dot(w, DTR[:, i]))
+    v = 1/2*((linalg.norm(w))**2) + C * s
+
+    return v
+
+def compute_H_hat2(DTR, LTR, psi, c=None, d=None, gamma=None):
+
+    z = numpy.equal.outer(LTR, LTR)
+    z = 2*z-1
+    if(gamma != None and c == None and d == None):
+        H = z * radial_basis_kernel(DTR, gamma, psi)
+    elif(c != None and d != None and gamma == None):
+        H = z*polynomial_kernel(DTR, d, c, psi)
+    else:
+        print('\nInvalid parameter\n')
+
+    return H
+
+def radial_basis_kernel(DTR, gamma, psi, DTE=None, computeScore=False, alpha=None, z = None):
+
+    if(computeScore == False):
+        nCol = DTR.shape[1]
+        nRow = DTR.shape[1]
+        M = numpy.zeros((nRow, nCol))
+
+        for i in range(DTR.shape[1]):
+            for j in range(DTR.shape[1]):
+                k = numpy.exp(-gamma * (linalg.norm(DTR[:, i] - DTR[:, j], axis=0) ** 2))+psi
+                M[i, j] += k
+    else:
+        nCol = DTE.shape[1]
+        nRow = DTR.shape[1]
+        M = numpy.zeros((nRow, nCol))
+
+        for i in range(DTR.shape[1]):
+            a = alpha[i]
+            z_ = z[i]
+            if (a != 0):
+                for j in range(DTE.shape[1]):
+                    k = numpy.exp(-gamma*(linalg.norm(DTR[:, i]-DTE[:, j], axis=0)**2))+psi
+                    M[i, j] += a * z_ * k
+
+    return M
+
+def polynomial_kernel(DTR, d, c, psi=None, DTE=None, computeScore=False, alpha=None, z=None):
+
+    if(computeScore == False):
+        return (numpy.dot(DTR.T, DTR) + c)**d + psi
+    else:
+        nCol = DTE.shape[1]
+        nRow = DTR.shape[1]
+        M = numpy.zeros((nRow, nCol))
+
+        for i in range(DTR.shape[1]):
+            a = alpha[i]
+            z_ = z[i]
+            if(a != 0):
+                for j in range(DTE.shape[1]):
+                    k = ((numpy.dot(DTR[:, i].T, DTE[:, j])+c)**2) + psi
+                    M[i, j] += a*z_*k
+
+        return M
+    
+def compute_score(alpha, DTR, LTR, DTE, psi, c=None, d=None, gamma=None):
+    z = LTR*2-1
+
+    if (gamma != None):
+        S = radial_basis_kernel(DTR, gamma, psi, DTE, True, alpha, z)
+        S = numpy.sum(S, axis=0)
+    elif (c != None and d != None):
+        S = polynomial_kernel(DTR, d, c, psi, DTE, True, alpha, z)
+        S = numpy.sum(S, axis=0)
+    else:
+        print('\nInvalid parameter\n')
+
+    return S
