@@ -188,35 +188,15 @@ def compute_norm_Bayes(unNormBayesRisk, app):
 def compute_min_DCF(llr, app, LTE):
    
     DCF_list= []
-    trashold= numpy.sort(llr)
+    treshold= numpy.sort(llr)
     
     for i in range(len(LTE)):
-        t=trashold[i]
+        t=treshold[i]
         tmp=compute_Bayes_risk(compute_optimal_B_decision(app, llr, LTE, t), app)
         DCF_list.append(compute_norm_Bayes(tmp, app))
         
-    return min(DCF_list)
-
-def plot_ROC(appParam, llr, testLabels):
-    pt, Cfn, Cfp = appParam
-    FPR = []
-    TPR = []
-    
-    thresholds = list(llr)
-    thresholds.append(math.inf)
-    thresholds.append(-math.inf)
-    thresholds.sort()
-    
-    for t in thresholds:
-        CM = compute_optimal_B_decision(appParam, llr, testLabels, t)
-        FPR.append(compute_FPR(CM))
-        TPR.append(1-compute_FNR(CM))
-
-    plt.plot(FPR, TPR)
-    plt.xlabel('FPR')
-    plt.ylabel('TPR')
-    plt.show()
-    
+    return min(DCF_list), treshold[numpy.argmin(DCF_list)]
+  
     
 def logreg_obj_wrap(DTR, LTR, l):
 
@@ -285,25 +265,21 @@ def radial_basis_kernel(DTR, gamma, psi, DTE=None, computeScore=False, alpha=Non
 
     if(computeScore == False):
         nCol = DTR.shape[1]
-        nRow = DTR.shape[1]
-        M = numpy.zeros((nRow, nCol))
+        M = numpy.zeros((nCol, nCol))
 
         for i in range(DTR.shape[1]):
-            for j in range(DTR.shape[1]):
-                k = numpy.exp(-gamma * (linalg.norm(DTR[:, i] - DTR[:, j], axis=0) ** 2))+psi
-                M[i, j] += k
+            k = numpy.exp(-gamma * (linalg.norm((-DTR +mcol(DTR[:, i])), axis=0) ** 2))+psi
+            M[i, :] += k
     else:
         nCol = DTE.shape[1]
-        nRow = DTR.shape[1]
-        M = numpy.zeros((nRow, nCol))
+        M = numpy.zeros((nCol))
 
         for i in range(DTR.shape[1]):
             a = alpha[i]
             z_ = z[i]
             if (a != 0):
-                for j in range(DTE.shape[1]):
-                    k = numpy.exp(-gamma*(linalg.norm(DTR[:, i]-DTE[:, j], axis=0)**2))+psi
-                    M[i, j] += a * z_ * k
+                k = numpy.exp(-gamma*(linalg.norm((-DTE+mcol(DTR[:, i])), axis=0)**2))+psi
+                M += a * z_ * k
 
     return M
 
@@ -313,17 +289,16 @@ def polynomial_kernel(DTR, d, c, psi=None, DTE=None, computeScore=False, alpha=N
         return (numpy.dot(DTR.T, DTR) + c)**d + psi
     else:
         nCol = DTE.shape[1]
-        nRow = DTR.shape[1]
-        M = numpy.zeros((nRow, nCol))
+        M = numpy.zeros((nCol))
 
         for i in range(DTR.shape[1]):
             a = alpha[i]
             z_ = z[i]
             if(a != 0):
-                for j in range(DTE.shape[1]):
-                    k = ((numpy.dot(DTR[:, i].T, DTE[:, j])+c)**2) + psi
-                    M[i, j] += a*z_*k
-
+                k = ((numpy.dot(DTR[:, i].T, DTE)+c)**d) + psi
+                M += a*z_*k
+                
+        
         return M
     
 def compute_score(alpha, DTR, LTR, DTE, psi, c=None, d=None, gamma=None):
@@ -331,10 +306,10 @@ def compute_score(alpha, DTR, LTR, DTE, psi, c=None, d=None, gamma=None):
 
     if (gamma != None):
         S = radial_basis_kernel(DTR, gamma, psi, DTE, True, alpha, z)
-        S = numpy.sum(S, axis=0)
+        #S = numpy.sum(S, axis=0)
     elif (c != None and d != None):
         S = polynomial_kernel(DTR, d, c, psi, DTE, True, alpha, z)
-        S = numpy.sum(S, axis=0)
+        #S = numpy.sum(S, axis=0)
     else:
         print('\nInvalid parameter\n')
 
