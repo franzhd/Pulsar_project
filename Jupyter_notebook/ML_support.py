@@ -290,13 +290,13 @@ def polynomial_kernel(DTR, d, c, psi=None, DTE=None, computeScore=False, alpha=N
     else:
         nCol = DTE.shape[1]
         M = numpy.zeros((nCol))
-
+        
+        k = ((numpy.dot(DTR.T, DTE)+c)**d) + psi
         for i in range(DTR.shape[1]):
             a = alpha[i]
             z_ = z[i]
             if(a != 0):
-                k = ((numpy.dot(DTR[:, i].T, DTE)+c)**d) + psi
-                M += a*z_*k
+                M += a*z_*k[i, :]
                 
         
         return M
