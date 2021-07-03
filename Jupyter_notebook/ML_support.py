@@ -1,4 +1,3 @@
-import numpy as np
 import math
 import scipy
 import numpy
@@ -314,3 +313,78 @@ def compute_score(alpha, DTR, LTR, DTE, psi, c=None, d=None, gamma=None):
         print('\nInvalid parameter\n')
 
     return S
+
+def EM(X, ref_GMM, resps):
+    N = X.shape[1]
+
+    
+    ref_GMM = comp_stats(X, resps, ref_GMM)
+    S = comp_score_GMM(X, ref_GMM)
+    logMargDen = scipy.special.logsumexp(S, axis=0)
+    succLL = numpy.sum(logMargDen)/N
+    resps = numpy.exp(S-logMargDen)
+
+    return ref_GMM, S, succLL, resps
+
+
+def comp_stats(X, responsabilities, gmm):
+    statistics = {}
+    temporary = []
+    sumZ = 0
+
+    for i, g in enumerate(gmm.values()):
+        Z = numpy.sum(mrow(responsabilities[i, :]), axis=1)
+        F, S = comp_stats_F_and_S(responsabilities[i, :], X)
+        temporary.append((Z, F, S))
+        
+    sumZ = numpy.sum(Z)
+
+    for i in range(len(gmm)):
+        Z, F, S = temporary[i]
+        newMu = F/Z
+        newC = S/Z-numpy.dot(newMu, newMu.T)
+        newW = Z/sumZ
+        statistics[i] = [newW, newMu, newC]
+
+    return statistics
+
+def comp_stats_F_and_S(respRelatedToComp, X):
+    S = numpy.zeros((X.shape[0], X.shape[0]), dtype='float64')
+    F = numpy.zeros((X.shape[0], 1))
+
+    for i in range(X.shape[1]):
+        S += respRelatedToComp[i]*numpy.dot(mcol(X[:, i]), mcol(X[:, i]).T)
+        F += respRelatedToComp[i]*mcol(X[:, i])
+
+    return F, S
+
+def comp_score_GMM(X, gmm):
+    M = len(gmm)
+    N = X.shape[1]
+
+    S = numpy.zeros((M, N), dtype='float64')
+
+    for i, g in enumerate(gmm.values()):
+        print(g)
+        prior = g[0]
+        mu = g[1]
+        C = g[2]
+        S[i, :] += GAU_logpdf_ND(X, mu, C)+numpy.log(prior)
+
+    return S
+
+def optimize_GMM(X, GMM, t=1e-6):
+    
+    S = comp_score_GMM(X, GMM)
+    logMargDen = scipy.special.logsumexp(S, axis=0)
+    prevLL = numpy.sum(logMargDen)/N
+    resps = numpy.exp(S-logMargDen)
+
+    GMM, succLL, resps = EM(X, GMM, resps)
+    
+    while(succLL-prevLL >= t):
+        prevLL = succLL
+        GMM, S, succLL, resps  = EM(X, GMM, resps)
+        
+    return GMM, S
+    
