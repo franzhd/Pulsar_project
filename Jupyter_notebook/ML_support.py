@@ -346,7 +346,7 @@ def comp_stats(X, responsabilities, gmm):
         newW = Z/sumZ
         statistics[i] = [newW, newMu, newC]
 
-    return statistics
+    return statistics.copy()
 
 def comp_stats_F_and_S(respRelatedToComp, X):
     S = numpy.zeros((X.shape[0], X.shape[0]), dtype='float64')
@@ -365,7 +365,7 @@ def comp_score_GMM(X, gmm):
     S = numpy.zeros((M, N), dtype='float64')
 
     for i, g in enumerate(gmm.values()):
-        print(g)
+        #print(g)
         prior = g[0]
         mu = g[1]
         C = g[2]
@@ -374,17 +374,17 @@ def comp_score_GMM(X, gmm):
     return S
 
 def optimize_GMM(X, GMM, t=1e-6):
+    N = X.shape[1]
     
     S = comp_score_GMM(X, GMM)
     logMargDen = scipy.special.logsumexp(S, axis=0)
     prevLL = numpy.sum(logMargDen)/N
     resps = numpy.exp(S-logMargDen)
 
-    GMM, succLL, resps = EM(X, GMM, resps)
+    GMM, S, succLL, resps = EM(X, GMM, resps)
     
     while(succLL-prevLL >= t):
         prevLL = succLL
         GMM, S, succLL, resps  = EM(X, GMM, resps)
         
     return GMM, S
-    
