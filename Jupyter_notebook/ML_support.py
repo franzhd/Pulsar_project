@@ -336,24 +336,24 @@ def comp_stats(X, responsabilities, gmm):
         Z = numpy.sum(mrow(responsabilities[i, :]), axis=1)
         F, S = comp_stats_F_and_S(responsabilities[i, :], X)
         temporary.append((Z, F, S))
-        
-    sumZ = numpy.sum(Z)
-
+        sumZ += Z
+    
     for i in range(len(gmm)):
         Z, F, S = temporary[i]
         newMu = F/Z
-        newC = S/Z-numpy.dot(newMu, newMu.T)
+        newC = (S/Z)-numpy.dot(newMu, newMu.T)
         newW = Z/sumZ
         statistics[i] = [newW, newMu, newC]
 
     return statistics.copy()
 
 def comp_stats_F_and_S(respRelatedToComp, X):
+    
     S = numpy.zeros((X.shape[0], X.shape[0]), dtype='float64')
     F = numpy.zeros((X.shape[0], 1))
-
+   
     for i in range(X.shape[1]):
-        S += respRelatedToComp[i]*numpy.dot(mcol(X[:, i]), mcol(X[:, i]).T)
+        S += respRelatedToComp[i]*numpy.dot(mcol(X[:, i]), mrow(X[:, i]))
         F += respRelatedToComp[i]*mcol(X[:, i])
 
     return F, S
